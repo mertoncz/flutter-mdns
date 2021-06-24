@@ -96,9 +96,9 @@ class MDNSPlugin : MethodCallHandler,StreamHandler {
       lock?.release()
     }
 
-    lock = wifiManager.createMulticastLock("FlutterMDNS_${serviceType}")
-    lock.setReferenceCounted(true)
-    lock.acquire()
+    lock = wifiManager?.createMulticastLock("FlutterMDNS_${serviceType}")
+    lock?.setReferenceCounted(true)
+    lock?.acquire()
 
     discoveryListener = DiscoveryListener(this);
     services.clear()
@@ -108,6 +108,8 @@ class MDNSPlugin : MethodCallHandler,StreamHandler {
 
   private fun stopDiscovery(result: Result) {
     nsdManager?.stopServiceDiscovery(discoveryListener)
+    lock?.release()
+
     discoveryListener = null
     services.clear()
     result.success(null);
