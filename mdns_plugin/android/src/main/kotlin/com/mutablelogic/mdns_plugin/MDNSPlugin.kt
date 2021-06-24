@@ -8,6 +8,7 @@ import io.flutter.plugin.common.EventChannel
 import io.flutter.plugin.common.EventChannel.StreamHandler
 import io.flutter.plugin.common.EventChannel.EventSink
 import io.flutter.plugin.common.PluginRegistry.Registrar
+import android.net.wifi.WifiManager
 import android.content.Context
 import android.net.nsd.NsdManager
 import android.net.nsd.NsdServiceInfo
@@ -17,6 +18,8 @@ import java.util.Timer
 import kotlin.concurrent.schedule
 
 class MDNSPlugin : MethodCallHandler,StreamHandler {
+  var lock: WifiManager.MulticastLock? = null
+  var wifiManager: WifiManager? = null
   var nsdManager: NsdManager? = null
   var sink: EventSink? = null
   var activity: Activity? = null
@@ -49,6 +52,7 @@ class MDNSPlugin : MethodCallHandler,StreamHandler {
   }
 
   constructor(registrar: Registrar) {
+    wifiManager = registrar.activity().getSystemService(Context.WIFI_SERVICE) as WifiManager
     nsdManager = registrar.activity().getSystemService(Context.NSD_SERVICE) as NsdManager
     activity = registrar.activity()
     EventChannel(registrar.messenger(), "mdns_plugin_delegate").setStreamHandler(this)
@@ -86,9 +90,16 @@ class MDNSPlugin : MethodCallHandler,StreamHandler {
     if(enableUpdating) {
       Log.w("MDNSPlugin", "startDiscovery: enableUpdating is currently ignored on the Android platform")
     }
+
     discoveryListener?.let {
       nsdManager?.stopServiceDiscovery(discoveryListener)
+      lock?.release()
     }
+
+    lock = wifiManager.createMulticastLock("FlutterMDNS_${serviceType}")
+    lock.setReferenceCounted(true)
+    lock.acquire()
+
     discoveryListener = DiscoveryListener(this);
     services.clear()
     nsdManager?.discoverServices(serviceType, NsdManager.PROTOCOL_DNS_SD, discoveryListener)
